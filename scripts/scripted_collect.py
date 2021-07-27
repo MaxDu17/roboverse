@@ -11,12 +11,6 @@ import h5py
 from roboverse.utils import get_timestamp
 EPSILON = 0.1
 
-SAVE_IMAGES = False      # if False, saves dummy image to save disk space
-
-# TODO(avi): Clean this up
-# NFS_PATH = '/nfs/kun1/users/avi/imitation_datasets/'
-NFS_PATH = '/nfs/kun1/users/avi/imitation_datasets/'
-
 
 def add_transition(traj, observation, action, reward, info, agent_info, done,
                    next_observation, img_dim, image_rendered=True):
@@ -119,8 +113,6 @@ def dump2h5(traj, path, image_rendered):
     traj_data.create_dataset("states", data=states)
     if image_rendered:
         traj_data.create_dataset("images", data=images, dtype=np.uint8)
-    # else:
-        # traj_data.create_dataset("images", data=np.zeros((images.shape[0], 2, 2, 3), dtype=np.uint8))
     traj_data.create_dataset("actions", data=actions)
     traj_data.create_dataset("rewards", data=rewards)
 
@@ -139,11 +131,7 @@ def dump2h5(traj, path, image_rendered):
 def main(args):
 
     timestamp = get_timestamp()
-    if osp.exists(NFS_PATH):
-        data_save_path = osp.join(NFS_PATH, args.save_directory)
-    else:
-        # data_save_path = os.path.join(os.environ['DATA_DIR'], 'roboverse',args.save_directory)
-        data_save_path = osp.join(__file__, "../..", "data", args.save_directory)
+    data_save_path = args.save_directory
     
     data_save_path = osp.abspath(data_save_path)
     if not osp.exists(data_save_path):

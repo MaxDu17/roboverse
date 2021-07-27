@@ -14,26 +14,7 @@ from tqdm import tqdm
 import h5py
 
 
-SAVE_IMAGES = False 
-
-def get_data_save_directory(args):
-    data_save_directory = args.data_save_directory
-
-    data_save_directory += '_{}'.format(args.env)
-
-    if args.num_trajectories > 1000:
-        data_save_directory += '_{}K'.format(int(args.num_trajectories/1000))
-    else:
-        data_save_directory += '_{}'.format(args.num_trajectories)
-
-    if args.save_all:
-        data_save_directory += '_save_all'
-
-    data_save_directory += '_noise_{}'.format(args.noise)
-    data_save_directory += '_{}'.format(get_timestamp())
-
-    return data_save_directory
-
+SAVE_IMAGES = False
 
 if __name__ == "__main__":
 
@@ -58,16 +39,11 @@ if __name__ == "__main__":
         num_trajectories_per_thread += 1
 
     timestamp = get_timestamp()
-    # save_directory = get_data_save_directory(args)
-    # save_directory = osp.join(__file__, "../..", save_directory, f"p{args.num_parallel_threads}")
-    # print(f"saving to: {save_directory}")
     commands = []
     script_name = "scripted_collect.py"
     
     for i in range(args.num_parallel_threads):
-        save_directory = get_data_save_directory(args)
-        # save_directory = osp.join(__file__, "../..", save_directory, f"p{i}")
-        save_directory = os.path.join(os.environ['DATA_DIR'], 'roboverse', save_directory, f"p{i}")
+        save_directory = os.path.join(os.environ['DATA_DIR'], 'roboverse', args.data_save_directory, f"p{i}")
         print(f"saving to: {save_directory}")
         command = ['python',
                 'scripts/{}'.format(script_name),
