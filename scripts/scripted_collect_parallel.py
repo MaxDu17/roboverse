@@ -14,8 +14,6 @@ from tqdm import tqdm
 import h5py
 
 
-SAVE_IMAGES = False
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -29,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--target-object", type=str, default="shed")
     parser.add_argument("-p", "--num-parallel-threads", type=int, default=10)
     parser.add_argument("--noise", type=float, default=0.1)
-    parser.add_argument("-f", "--full-reward", type=int, default=0)
+    parser.add_argument("-f", "--full-reward", type=int, default=1)
     parser.add_argument("-r", "--image-rendered", type=int, default=0)
     args = parser.parse_args()
     print(f"using {args.num_parallel_threads} threads")
