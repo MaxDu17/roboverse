@@ -1,78 +1,84 @@
-from roboverse.envs.widow250 import Widow250Env
-from roboverse.envs.widow250_drawer import Widow250DrawerEnv
-from roboverse.envs.widow250_pickplace import Widow250PickPlaceEnv, Widow250PickPlaceMultiObjectEnv
+from roboverse.envs.widow250_pickplace import Widow250PickPlaceEnv
 from roboverse.bullet import object_utils
 import roboverse.bullet as bullet
 from roboverse.envs import objects
-from roboverse.envs.multi_object import MultiObjectEnv, MultiObjectMultiContainerEnv
-from roboverse.assets.shapenet_object_lists import CONTAINER_CONFIGS, TRAIN_OBJECTS
+from roboverse.assets.shapenet_object_lists import TRAIN_OBJECTS
 from roboverse.utils.general_utils import AttrDict
-import os.path as osp
 import numpy as np
 import random
-from roboverse.envs.tasks import PickPlaceTask, DrawerOpenTask, DrawerClosedTask, PickTask, PlaceTask
+from roboverse.envs.tasks import DrawerOpenTask, DrawerClosedTask, PickTask, PlaceTask
+
 
 class Widow250OfficeEnv(Widow250PickPlaceEnv):
     def __init__(self,
-                container_name='open_box',    
-                num_objects=4, 
-                object_names=('eraser', 'pepsi_bottle', 'shed', 'gatorade'),
-                object_targets=('container', 'container', 'container', 'container'),
+                container_name='open_box',
+                reward_type='pick_place',
+
+                num_objects=7,
+                object_names=('eraser', 'shed', 'pepsi_bottle', 'gatorade', 'eraser_2', 'shed_2', 'pepsi_bottle_2'),
+                object_targets=('tray', 'container', 'drawer_inside'),
                 target_object='gatorade',
-                object_scales=(0.75, 0.75, 0.75, 0.7),
-                object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
+                object_scales=(0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8),
+                object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0),
+                                     (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
                 
-                object_position_high=(0.65, .9, -.35), # (.7, .27, -.35)
-                object_position_low=(.55, .1, -.35),
+                object_position_high=(0.75, .9, -.35),
+                object_position_low=(.3, .1, -.35),
                 original_object_positions = (
-                            (0.35, 0.16, -0.35),
-                            (0.4, -0.14, -0.35),
-                            (0.53, -0.24, -0.35),
-                            (0.8, -0.1, -0.35)),
-                area_upper_left_low = (0.8, -0.15, -0.35),
-                area_upper_left_high = (0.85, -0.1, -0.35),
-                area_upper_middle_low = (0.4, -0.27, -0.35),
-                area_upper_middle_high = (0.56, -0.13, -0.35),
-                area_lower_right_low = (0.34, 0.15, -0.35),
-                area_lower_right_high = (0.4, 0.17, -0.35),
+                        (0.33620103,  0.12358467, -0.35),
+                        (0.55123888, -0.17699107, -0.35),
+                        (0.84287004, -0.1479069 , -0.35),
+                        (0.75200037, -0.14383595, -0.35),
+                        (0.42755662, -0.13711447, -0.35),
+                        (0.39866522,  0.18929185, -0.35),
+                        (0.46422192, -0.23138137, -0.35),
+                ),
+                area_upper_left_low=(0.75, -0.15, -0.35),
+                area_upper_left_high=(0.85, -0.1, -0.35),
+                area_upper_middle_low=(0.4, -0.27, -0.35),
+                area_upper_middle_high=(0.56, -0.13, -0.35),
+                area_lower_right_low=(0.32, 0.12, -0.35),
+                area_lower_right_high=(0.4, 0.19, -0.35),
                 
                 possible_objects=TRAIN_OBJECTS[:10],            
-                drawer_pos=(0.35, 0.2, -.35),
+                drawer_pos=(0.1, 0.0, -.35),
                 random_drawer = False,
                 drawer_pos_low = (0.1, 0.0, -.35),
                 drawer_pos_high = (0.2, 0.2, -.35),
                 drawer_quat=(0, 0, 0.707107, 0.707107),
                 left_opening=True,  # False is not supported
                 start_opened=False,
-                reward_type='pick_place',
+
                 min_distance_from_object = 0.12,
-                min_distance_drawer=0.14,
-                min_distance_container=0.08,
-                min_distance_obj=0.08,
+                min_distance_drawer=0.2,
+                min_distance_container=0.11,
+                min_distance_obj=0.09,
+
                 load_tray = True,
-                tray_position = (-0.1,-0.5, -.39),
-                
-                tray_position_high=(-0.1,-0.5, -.39), # (.7, .27, -.35)
+                random_tray=False,
+                tray_position = (0.26,-0.2, -.39),
+                tray_position_high=(-0.1,-0.5, -.39),
                 tray_position_low=(-0.1,-0.5, -.39),
                 
-                base_position_high=(0.6, 0.0, -0.4), # (.7, .27, -.35)
-                base_position_low=(0.6, -0.0, -0.4),
-                base_position=(0.6, -0.0, -0.4),
-                base_orientation = (0, 0, -150),
-                base_orientation_high =(0, 0, -170),
-                base_orientation_low = (0, 0, -190),
+                base_position_high=(0.62, 0.02, -0.4),
+                base_position_low=(0.58, -0.02, -0.4),
+                base_position=(0.6, 0.0, -0.4),
+                base_orientation = (0, 0, -180),
+                base_orientation_high =(0, 0, -182),
+                base_orientation_low = (0, 0, -188),
                 random_base = False,
                 random_base_orientation = False,
                 random_joint_values = False,
+
                 xyz_action_scale = 0.7,
-                random_shuffle_object = True,
-                random_shuffle_target = True,
-                random_tray = False,
-                random_object_position = True,
+
+                random_shuffle_object = False,
+                random_shuffle_target = False,
+                random_object_position = False,
+                object_jitter=0.01,
+
                 observation_img_dim=256,
                 camera_distance=0.55,
-
-                object_jitter=None,
 
                 fixed_init_pos=None,
                 drawer_number = 2,
@@ -117,7 +123,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.start_opened = start_opened
 
         self.drawer_opened_success_thresh = 0.75
-        self.drawer_closed_success_thresh = 0.25     
+        self.drawer_closed_success_thresh = 0.4
         self.possible_objects = np.asarray(possible_objects) 
         self.num_objects = num_objects
         self.object_position_high = list(object_position_high)
@@ -134,9 +140,9 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         self.random_shuffle_target = random_shuffle_target
         if self.random_shuffle_target:
-            self.object_targets[0:2] = random.sample(self.object_targets[0:2], 2)
-            if self.num_objects == 2:
-                self.object_targets = [self.object_targets[0], self.object_targets[-1]]
+            self.object_targets = random.sample(self.object_targets, len(self.object_targets))
+            #if self.num_objects == 2:
+            #    self.object_targets = [self.object_targets[0], self.object_targets[-1]]
 
         self.xyz_action_scale = xyz_action_scale
 
@@ -182,12 +188,12 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
     def reset(self):
         if self.random_shuffle_object:
-            self.object_names = random.sample(self.object_names, len(self.object_names))
+            #self.object_names = random.sample(self.object_names, len(self.object_names))
             self.task_object_names = random.sample(self.object_names, self.num_objects)
         if self.random_shuffle_target:
-            self.object_targets[0:2] = random.sample(self.object_targets[0:2], 2)
-            if self.num_objects == 2:
-                self.object_targets = [self.object_targets[0], self.object_targets[-1]]
+            self.object_targets = random.sample(self.object_targets, len(self.object_targets))
+            #if self.num_objects == 2:
+            #    self.object_targets = [self.object_targets[0], self.object_targets[-1]]
 
        
         if self.random_drawer:
@@ -379,9 +385,10 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.robot_id = objects.widow250(self.base_position, self.base_orientation)
         self.room_id = objects.room()
         self.officedesk_id = objects.officedesk()
+        self.officedesk2_id = objects.officedesk(basePosition=(0.95, 0.35, -0.46))
         self.monitor_id = objects.monitor()
-        self.keyboard_id = objects.keyboard()     
-        self.desktop_id = objects.desktop()
+        self.keyboard_id = objects.keyboard()
+        # self.desktop_id = objects.desktop()
         self.lamp_id = objects.lamp()
 
         self.desk_objects = {}
@@ -424,22 +431,27 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         bullet.step_simulation(self.num_sim_steps_reset)
 
         # TODO: wrap random position for container and objects
-        area_upper_left = np.random.uniform(
-                low=self.area_upper_left_low, high=self.area_upper_left_high)
+        area_upper_left = object_utils.generate_two_object_positions(
+            self.area_upper_left_low, self.area_upper_left_high,
+            min_distance_small_obj=self.min_distance_obj,)
 
-        area_upper_middle = object_utils.generate_two_object_positions(
+        area_upper_middle = object_utils.generate_three_object_positions(
                     self.area_upper_middle_low, self.area_upper_middle_high,
                     min_distance_small_obj=self.min_distance_obj,
         )
-        area_lower_right = np.random.uniform(
-                low=self.area_lower_right_low, high=self.area_lower_right_high)
+        area_lower_right = object_utils.generate_two_object_positions(
+                    self.area_lower_right_low, self.area_lower_right_high,
+                    min_distance_small_obj=self.min_distance_obj)
 
         if self.random_object_position:
             self.original_object_positions = [
-                area_upper_left,
+                area_upper_left[0],
+                area_upper_left[1],
                 area_upper_middle[0],
                 area_upper_middle[1],
-                area_lower_right
+                area_upper_middle[2],
+                area_lower_right[0],
+                area_lower_right[1],
             ]
             self.original_object_positions = random.sample(self.original_object_positions,
                                                             len(self.original_object_positions))
@@ -451,7 +463,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 object_position[:2] += self.object_jitter * 2 * (np.random.rand(2) - 0.5)
                 object_position = tuple(object_position)
             self.objects[object_name] = object_utils.load_object(
-                object_name,
+                object_name[:-2] if object_name[-2] == '_' else object_name,
                 object_position,
                 object_quat=self.object_orientations[object_name],
                 scale=self.object_scales[object_name])
