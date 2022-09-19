@@ -3,7 +3,8 @@
 *.DS_Store
 .vscode/
 
-
+*.h5
+*.gif
 .idea/
 data/
 .history/
