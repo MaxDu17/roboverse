@@ -7,18 +7,22 @@ from roboverse.policies import policies
 import argparse
 from tqdm import tqdm
 import h5py
+import imageio
 
 from roboverse.utils import get_timestamp
 EPSILON = 0.1
 
 
 def add_transition(traj, observation, action, reward, info, agent_info, done,
-                   next_observation, img_dim, image_rendered=True):
+                   next_observation, img_dim, image_rendered=True, video_writer = None):
     if image_rendered:
         observation["image"] = np.reshape(np.uint8(observation["image"] * 255.),
                                         (img_dim, img_dim, 3))
         next_observation["image"] = np.reshape(
             np.uint8(next_observation["image"] * 255.), (img_dim, img_dim, 3))
+
+        if video_writer is not None:
+            video_writer.append_data(observation["image"])
     traj["observations"].append(observation)
     traj["next_observations"].append(next_observation)
     traj["actions"].append(action)
@@ -26,11 +30,13 @@ def add_transition(traj, observation, action, reward, info, agent_info, done,
     traj["terminals"].append(done)
     traj["agent_infos"].append(agent_info)
     traj["env_infos"].append(info)
+
+
     return traj
 
 
 def collect_one_traj(env, policy, num_timesteps, noise,
-                     accept_trajectory_key, image_rendered, args):
+                     accept_trajectory_key, image_rendered, args, video_writer = None):
     num_steps = -1
     rewards = []
     success = False
@@ -52,14 +58,15 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     total_reward = 0
     total_reward_thresh = sum([subtask.REWARD for subtask in env.subtasks])
     for j in range(num_timesteps):
-
+        # print(j)
+        t1 = time.time()
         action, agent_info, add_noise = policy.get_action()
-
+        t2 = time.time()
         # In case we need to pad actions by 1 for easier realNVP modelling
         env_action_dim = env.action_space.shape[0]
         if env_action_dim - action.shape[0] == 1:
             action = np.append(action, 0)
-        
+
         if add_noise:
             action += np.random.normal(scale=noise, size=(env_action_dim,))
         else:
@@ -69,10 +76,15 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 
         action = np.clip(action, -1 + EPSILON, 1 - EPSILON)
         observation = env.get_observation()
+
+        t3 = time.time()
         next_observation, reward, done, info = env.step(action)
-        # import pdb; pdb.set_trace()
+        # import ipdb
+        # ipdb.set_trace()
+        t4 = time.time()
+#         import ipdb; ipdb.set_trace()
         add_transition(traj, observation,  action, reward, info, agent_info,
-                       done, next_observation, img_dim, image_rendered)
+                       done, next_observation, img_dim, image_rendered, video_writer)
         total_reward += reward
 
         if accept_trajectory_key == 'table_clean':
@@ -87,6 +99,8 @@ def collect_one_traj(env, policy, num_timesteps, noise,
                 num_steps = j
             if info[accept_trajectory_key]:
                 success = True
+
+        # print(f"step: {t4 - t3}, obs: {t3 - t2}, policy: {t2 - t1}")
 
         rewards.append(reward)
         if done or agent_info['done']:
@@ -132,7 +146,7 @@ def main(args):
 
     timestamp = get_timestamp()
     data_save_path = args.save_directory
-    
+
     data_save_path = osp.abspath(data_save_path)
     if not osp.exists(data_save_path):
         os.makedirs(data_save_path)
@@ -153,7 +167,7 @@ def main(args):
     accept_trajectory_key = args.accept_trajectory_key
 
     progress_bar = tqdm(total=args.num_trajectories)
-    
+
     total_area_occurance = [0, 0, 0]
     total_object_occurance = {}
     for object_name in env.object_names:
@@ -161,15 +175,16 @@ def main(args):
 
     while num_saved < args.num_trajectories:
         num_attempts += 1
+        video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
         traj, success, num_steps = collect_one_traj(
             env, policy, args.num_timesteps, args.noise,
-            accept_trajectory_key, args.image_rendered, args)
-        
+            accept_trajectory_key, args.image_rendered, args, video_writer)
+        video_writer.close()
         # print("num_timesteps: ", num_steps)
         if success:
             if args.gui:
                 print("num_timesteps: ", num_steps)
-            
+
             data.append(traj)
             dump2h5(traj, os.path.join(data_save_path, 'rollout_{}.h5'.format(num_saved)),
                         args.image_rendered)
@@ -219,9 +234,9 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--target-object", type=str)
     parser.add_argument("-d", "--save-directory", type=str, default=""),
     parser.add_argument("--noise", type=float, default=0.1)
-    parser.add_argument("-r", "--image-rendered", type=int, default=0)
+    parser.add_argument("-r", "--image-rendered", type=int, default=1)
     parser.add_argument("-f", "--full-reward", type=int, default=0)
-    
+
     args = parser.parse_args()
 
     main(args)

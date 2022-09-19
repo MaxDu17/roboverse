@@ -41,7 +41,7 @@ if __name__ == "__main__":
     script_name = "scripted_collect.py"
     
     for i in range(args.num_parallel_threads):
-        save_directory = os.path.join(os.environ['DATA_DIR'], 'roboverse', args.data_save_directory, f"p{i}")
+        save_directory = os.path.join("/iris/u/maxjdu/Repos/", 'roboverse', args.data_save_directory, f"p{i}")
         print(f"saving to: {save_directory}")
         command = ['python',
                 'scripts/{}'.format(script_name),

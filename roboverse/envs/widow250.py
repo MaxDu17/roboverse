@@ -85,7 +85,6 @@ class Widow250Env(gym.Env, Serializable):
                  gui=False,
                  in_vr_replay=False,
                  ):
-
         self.control_mode = control_mode
         self.observation_mode = observation_mode
         self.observation_img_dim = observation_img_dim
@@ -290,7 +289,7 @@ class Widow250Env(gym.Env, Serializable):
         return self.get_observation(), reward, done, info
 
     def get_observation(self):
-        # print(f"observation mode: {self.observation_mode}")
+        print(f"observation mode: {self.observation_mode}")
         gripper_state = self.get_gripper_state()
         gripper_binary_state = [float(self.is_gripper_open)]
         ee_pos, ee_quat = bullet.get_link_state(

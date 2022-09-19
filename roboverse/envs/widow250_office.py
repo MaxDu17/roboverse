@@ -21,7 +21,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 object_scales=(0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8),
                 object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0),
                                      (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
-                
+
                 object_position_high=(0.75, .9, -.35),
                 object_position_low=(.3, .1, -.35),
                 original_object_positions = (
@@ -39,8 +39,8 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 area_upper_middle_high=(0.56, -0.13, -0.35),
                 area_lower_right_low=(0.32, 0.12, -0.35),
                 area_lower_right_high=(0.4, 0.19, -0.35),
-                
-                possible_objects=TRAIN_OBJECTS[:10],            
+
+                possible_objects=TRAIN_OBJECTS[:10],
                 drawer_pos=(0.1, 0.0, -.35),
                 random_drawer = False,
                 drawer_pos_low = (0.1, 0.0, -.35),
@@ -59,7 +59,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 tray_position = (0.26,-0.2, -.39),
                 tray_position_high=(-0.1,-0.5, -.39),
                 tray_position_low=(-0.1,-0.5, -.39),
-                
+
                 base_position_high=(0.62, 0.02, -0.4),
                 base_position_low=(0.58, -0.02, -0.4),
                 base_position=(0.6, 0.0, -0.4),
@@ -116,7 +116,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.drawer_quat = drawer_quat
         self.left_opening = left_opening
         self.start_opened = start_opened
-        
+
         self.drawer_pos = drawer_pos
         self.drawer_quat = drawer_quat
         self.left_opening = left_opening
@@ -124,7 +124,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         self.drawer_opened_success_thresh = 0.75
         self.drawer_closed_success_thresh = 0.4
-        self.possible_objects = np.asarray(possible_objects) 
+        self.possible_objects = np.asarray(possible_objects)
         self.num_objects = num_objects
         self.object_position_high = list(object_position_high)
         self.object_position_low = list(object_position_low)
@@ -157,6 +157,8 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.fixed_init_pos = fixed_init_pos
         self.subtasks = None
 
+#         import ipdb
+#         ipdb.set_trace()
         super(Widow250OfficeEnv, self).__init__(
             object_names=object_names,
             target_object=target_object,
@@ -195,7 +197,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             #if self.num_objects == 2:
             #    self.object_targets = [self.object_targets[0], self.object_targets[-1]]
 
-       
+
         if self.random_drawer:
             self.drawer_pos = np.random.uniform(
                 low=self.drawer_pos_low, high=self.drawer_pos_high)
@@ -229,10 +231,10 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         gripper_binary_state = [float(self.is_gripper_open)]
         ee_pos, ee_quat = bullet.get_link_state(
             self.robot_id, self.end_effector_index)
-        
+
         object_positions = []
         object_orientations = []
-        
+
         drawer_pos = self.get_drawer_pos()
         drawer_handle_pos = self.get_drawer_handle_pos()
 
@@ -252,24 +254,35 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         arm_state = np.concatenate((ee_pos, ee_quat, gripper_state, gripper_binary_state))
         desk_object_states = self.get_states(self.desk_objects)
 
-        state = np.concatenate((
+        proprio_state = arm_state
+        object_state = np.concatenate((
             object_states,
             container_states,
             drawer_handle_state,
-            arm_state,
             desk_object_states
         ))
 
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
-            image_observation = np.float32(image_observation.flatten()) / 255.0
+            # used to be .flatten()
+            image_observation = np.float32(image_observation) # / 255.0
             observation = {
-                'state': state,
+                "robot_state": proprio_state,
+                'object': object_state,
+                "eef_pos" : ee_pos,
+                "eef_quat" : ee_quat,
+                "gripper_qpos": gripper_state,
+                "gripper_binary": gripper_binary_state,
                 'image': image_observation
             }
         else:
             observation = {
-                'state': state
+                "robot_state": proprio_state,
+                'object': object_state,
+                "eef_pos" : ee_pos,
+                "eef_quat" : ee_quat,
+                "gripper_qpos": gripper_state,
+                "gripper_binary": gripper_binary_state,
             }
 
         return observation
@@ -328,7 +341,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         info.drawer_opened_percentage = self.get_drawer_opened_percentage()
         info.drawer_opened = info.drawer_opened_percentage > self.drawer_opened_success_thresh
         info.drawer_closed = info.drawer_opened_percentage < self.drawer_closed_success_thresh
-        
+
         return info
 
     def get_reward(self, info):
@@ -337,7 +350,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             reward += self.current_subtask.REWARD
             self.subtasks.pop(0)        # switch to the next subtask
         return reward
-    
+
     def step(self, action):
         obs, reward, _, info = super().step(action)
         done = not self.subtasks
@@ -401,7 +414,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         self.drawer_id = object_utils.load_object(
             "drawer", self.drawer_pos, self.drawer_quat, scale=0.1)
-        
+
         # Open and close testing.
         closed_drawer_x_pos = object_utils.open_drawer(
             self.drawer_id)[0]
@@ -427,7 +440,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.containers[self.container_name] = self.container_id
         self.containers['tray'] = self.tray_id
         self.containers['drawer'] = self.drawer_id
-        
+
         bullet.step_simulation(self.num_sim_steps_reset)
 
         # TODO: wrap random position for container and objects
