@@ -31,8 +31,17 @@ def get_drawer_pos(drawer):
         drawer, get_drawer_base_joint(drawer))
     return np.array(drawer_pos)
 
+def set_drawer_pos(drawer, pos):
+    drawer_pos, _ = bullet.set_link_state(
+        drawer, get_drawer_base_joint(drawer), pos)
+    return np.array(drawer_pos)
 
 def get_drawer_handle_pos(drawer):
+    handle_pos, _ = bullet.get_link_state(
+        drawer, get_drawer_handle_link(drawer))
+    return np.array(handle_pos)
+
+def set_drawer_handle_pos(drawer):
     handle_pos, _ = bullet.get_link_state(
         drawer, get_drawer_handle_link(drawer))
     return np.array(handle_pos)

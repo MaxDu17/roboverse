@@ -226,6 +226,64 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.subtasks = self.generate_tasks()
         return self.get_observation()
 
+    # def get_observation(self):
+    #     gripper_state = self.get_gripper_state()
+    #     gripper_binary_state = [float(self.is_gripper_open)]
+    #     ee_pos, ee_quat = bullet.get_link_state(
+    #         self.robot_id, self.end_effector_index)
+    #
+    #     drawer_pos = self.get_drawer_pos()
+    #     drawer_handle_pos = self.get_drawer_handle_pos()
+    #
+    #     '''
+    #     State:
+    #         object_pos/orientation: 7 * 4,
+    #         container_pos/orientation: 7 * 3, box/tray/drawer
+    #         drawer_handle_pos: 3,
+    #         arm/gripper_states: 10,
+    #     Extra:
+    #         desk_object_pos/orientation: 7 * 2, monitor/lamp
+    #     '''
+    #     state = np.zeros(7 * 9 + 3 + 10)
+    #     object_states = self.get_states(self.objects)
+    #     container_states = self.get_states(self.containers)
+    #     drawer_handle_state = np.asarray(self.get_drawer_handle_pos())
+    #     arm_state = np.concatenate((ee_pos, ee_quat, gripper_state, gripper_binary_state))
+    #     desk_object_states = self.get_states(self.desk_objects)
+    #
+    #     proprio_state = arm_state
+    #     object_state = np.concatenate((
+    #         object_states,
+    #         container_states,
+    #         drawer_handle_state,
+    #         desk_object_states
+    #     ))
+    #
+    #     if self.observation_mode == 'pixels':
+    #         image_observation = self.render_obs()
+    #         # used to be .flatten()
+    #         image_observation = np.float32(image_observation) # / 255.0
+    #         observation = {
+    #             "robot_state": proprio_state,
+    #             'object': object_state,
+    #             "eef_pos" : ee_pos,
+    #             "eef_quat" : ee_quat,
+    #             "gripper_qpos": gripper_state,
+    #             "gripper_binary": gripper_binary_state,
+    #             'image': image_observation
+    #         }
+    #     else:
+    #         observation = {
+    #             "robot_state": proprio_state,
+    #             'object': object_state,
+    #             "eef_pos" : ee_pos,
+    #             "eef_quat" : ee_quat,
+    #             "gripper_qpos": gripper_state,
+    #             "gripper_binary": gripper_binary_state,
+    #         }
+    #
+    #     return observation
+
     def get_observation(self):
         gripper_state = self.get_gripper_state()
         gripper_binary_state = [float(self.is_gripper_open)]
@@ -254,35 +312,24 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         arm_state = np.concatenate((ee_pos, ee_quat, gripper_state, gripper_binary_state))
         desk_object_states = self.get_states(self.desk_objects)
 
-        proprio_state = arm_state
-        object_state = np.concatenate((
+        state = np.concatenate((
             object_states,
             container_states,
             drawer_handle_state,
+            arm_state,
             desk_object_states
         ))
 
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
-            # used to be .flatten()
-            image_observation = np.float32(image_observation) # / 255.0
+            image_observation = np.float32(image_observation.flatten()) / 255.0
             observation = {
-                "robot_state": proprio_state,
-                'object': object_state,
-                "eef_pos" : ee_pos,
-                "eef_quat" : ee_quat,
-                "gripper_qpos": gripper_state,
-                "gripper_binary": gripper_binary_state,
+                'state': state,
                 'image': image_observation
             }
         else:
             observation = {
-                "robot_state": proprio_state,
-                'object': object_state,
-                "eef_pos" : ee_pos,
-                "eef_quat" : ee_quat,
-                "gripper_qpos": gripper_state,
-                "gripper_binary": gripper_binary_state,
+                'state': state
             }
 
         return observation
@@ -319,6 +366,20 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             object_states[7*i+3:7*i+7] = object_orientation
         return object_states
 
+    def set_object_state(self, objects, object_states):
+        import ipdb
+        ipdb.set_trace()
+        verify_object_states = np.zeros(7 * len(objects))
+        for i, object_id in enumerate(objects):
+            # position then orientation
+            bullet.reset_object(objects[object_id], object_states[7 * i:7 * i + 3],
+                                         object_states[7 * i + 3:7 * i + 7] )
+
+            object_position, object_orientation = bullet.get_object_position(objects[object_id])
+            verify_object_states[7*i:7*i+3] = object_position
+            verify_object_states[7*i+3:7*i+7] = object_orientation
+
+        return verify_object_states
 
     def get_info(self):
         info = AttrDict()
@@ -350,6 +411,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             reward += self.current_subtask.REWARD
             self.subtasks.pop(0)        # switch to the next subtask
         return reward
+
 
     def step(self, action):
         obs, reward, _, info = super().step(action)
@@ -484,10 +546,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             bullet.step_simulation(self.num_sim_steps_reset)
 
 
-
     def get_drawer_handle_pos(self):
-        handle_pos = object_utils.get_drawer_handle_pos(
-            self.drawer_id)
+        handle_pos = object_utils.get_drawer_handle_pos(self.drawer_id)
+        return handle_pos
+    
+    def set_drawer_handle_pos(self, pos): #sets the drawer handle to
+        import ipdb
+        ipdb.set_trace()
+        handle_pos = object_utils.set_drawer_handle_pos(self.drawer_id, pos)
         return handle_pos
 
     def is_drawer_open(self):

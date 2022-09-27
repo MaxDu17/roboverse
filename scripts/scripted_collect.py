@@ -12,6 +12,8 @@ import imageio
 from roboverse.utils import get_timestamp
 EPSILON = 0.1
 
+# running for debugging purposes
+# python scripted_collect.py -n 5 -t 250 -e Widow250OfficeRand-v0 -pl tableclean -a table_clean -d office_TA
 
 def add_transition(traj, observation, action, reward, info, agent_info, done,
                    next_observation, img_dim, image_rendered=True, video_writer = None):
@@ -76,6 +78,8 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 
         action = np.clip(action, -1 + EPSILON, 1 - EPSILON)
         observation = env.get_observation()
+        # import ipdb
+        # ipdb.set_trace()
 
         t3 = time.time()
         next_observation, reward, done, info = env.step(action)
@@ -83,7 +87,7 @@ def collect_one_traj(env, policy, num_timesteps, noise,
         # ipdb.set_trace()
         t4 = time.time()
 #         import ipdb; ipdb.set_trace()
-        add_transition(traj, observation,  action, reward, info, agent_info,
+        add_transition(traj, observation, action, reward, info, agent_info,
                        done, next_observation, img_dim, image_rendered, video_writer)
         total_reward += reward
 
@@ -112,6 +116,9 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 def dump2h5(traj, path, image_rendered):
     """Dumps a collected trajectory to HDF5 file."""
     # convert to numpy arrays
+    import ipdb
+    ipdb.set_trace()
+
     states = np.array([o['state'] for o in traj['observations']])
     if image_rendered:
         images = np.array([o['image'] for o in traj['observations']])
@@ -181,7 +188,7 @@ def main(args):
             accept_trajectory_key, args.image_rendered, args, video_writer)
         video_writer.close()
         # print("num_timesteps: ", num_steps)
-        if success:
+        if True: #success:
             if args.gui:
                 print("num_timesteps: ", num_steps)
 

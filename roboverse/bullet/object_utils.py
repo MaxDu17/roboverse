@@ -312,6 +312,8 @@ def load_shapenet_object(object_name, object_position,
     p.resetBasePositionAndOrientation(body, object_position, object_quat)
     return body
 
+def set_object_state(object_id, pos, orient):
+    p.resetBasePositionAndOrientation(object_id, pos, orient)
 
 def load_bullet_object(object_name, **kwargs):
     p.setAdditionalSearchPath(pybullet_data.getDataPath())

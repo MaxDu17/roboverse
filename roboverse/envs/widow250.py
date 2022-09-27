@@ -204,6 +204,22 @@ class Widow250Env(gym.Env, Serializable):
 
         return self.get_observation()
 
+    def set_robot_state(self, target_ee_pos, target_ee_quat, target_gripper_state):
+        bullet.apply_action_ik(
+            target_ee_pos, target_ee_quat, target_gripper_state,
+            self.robot_id,
+            self.end_effector_index, self.movable_joints,
+            lower_limit=JOINT_LIMIT_LOWER,
+            upper_limit=JOINT_LIMIT_UPPER,
+            rest_pose=RESET_JOINT_VALUES,
+            joint_range=JOINT_RANGE,
+            num_sim_steps=num_sim_steps)
+
+        info = self.get_info()
+        reward = self.get_reward(info)
+        done = False
+        return self.get_observation(), reward, done, info
+
     def step(self, action):
 
         # TODO Clean this up

@@ -1,2 +1,0 @@
-area_occurance: [0, 6, 1]
-object_occurance: {'eraser': 2, 'shed': 2, 'pepsi_bottle': 2, 'gatorade': 2, 'eraser_2': 2, 'shed_2': 2, 'pepsi_bottle_2': 2}

@@ -5,7 +5,7 @@ from roboverse.assets.shapenet_object_lists \
     PICK_PLACE_TEST_OBJECTS, TRAIN_CONTAINERS, TEST_CONTAINERS, PICK_PLACE_DEMO_CONTAINERS, PICK_PLACE_DEMO_OBJECTS
 
 ENVIRONMENT_SPECS = (
-
+#
     ##################### OFFICE ENVS ########################
     {
         'id': 'Widow250OfficeRand-v0',
@@ -1672,7 +1672,7 @@ ENVIRONMENT_SPECS = (
 
                     # 'object_position_high': (0.75, .9, -.35), # (.7, .27, -.35)
                     # 'object_position_low': (.56, .1, -.35),
-                    
+
                     'object_position_high': (0.75, .9, -.35), # (.7, .27, -.35)
                     'object_position_low': (.3, .1, -.35),
 
