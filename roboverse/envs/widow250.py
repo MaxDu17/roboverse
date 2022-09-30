@@ -213,12 +213,12 @@ class Widow250Env(gym.Env, Serializable):
             upper_limit=JOINT_LIMIT_UPPER,
             rest_pose=RESET_JOINT_VALUES,
             joint_range=JOINT_RANGE,
-            num_sim_steps=num_sim_steps)
+            num_sim_steps=100) #self.num_sim_steps)
 
-        info = self.get_info()
-        reward = self.get_reward(info)
-        done = False
-        return self.get_observation(), reward, done, info
+        gripper_state = self.get_gripper_state()
+        ee_pos, ee_quat = bullet.get_link_state(
+            self.robot_id, self.end_effector_index)
+        return ee_pos, ee_quat, gripper_state
 
     def step(self, action):
 

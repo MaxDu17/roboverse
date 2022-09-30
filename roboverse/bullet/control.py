@@ -25,13 +25,9 @@ def get_link_state(body_id, link_index):
     position, orientation, _, _, _, _ = p.getLinkState(body_id, link_index)
     return np.asarray(position), np.asarray(orientation)
 
-def set_link_state(body_id, link_index, position, orientation = None):
-    import ipdb
-    ipdb.set_trace()
-    if orientation is None:
-        _, orientation, _, _, _, _ = p.getLinkState(body_id, link_index)
-    p.resetJointState(body_id, link_index, position, orientation)
-    return get_link_state(body_id, link_index) #to sanity check
+def set_link_state(body_id, link_index, position):
+    p.resetJointState(body_id, link_index, position) #, orientation)
+    return get_link_state(body_id, link_index)[0:2] #to sanity check
 
 def get_joint_info(body_id, joint_id, key):
     keys = ["jointIndex", "jointName", "jointType", "qIndex", "uIndex",

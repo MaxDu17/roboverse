@@ -11,7 +11,6 @@ def open_drawer(drawer, half_open=False):
 def close_drawer(drawer):
     return slide_drawer(drawer, 1)
 
-
 def get_drawer_base_joint(drawer):
     joint_names = [control.get_joint_info(drawer, j, 'jointName')
                    for j in range(p.getNumJoints(drawer))]
@@ -33,7 +32,7 @@ def get_drawer_pos(drawer):
 
 def set_drawer_pos(drawer, pos):
     drawer_pos, _ = bullet.set_link_state(
-        drawer, get_drawer_base_joint(drawer), pos)
+        drawer, get_drawer_base_joint(drawer), pos[1])
     return np.array(drawer_pos)
 
 def get_drawer_handle_pos(drawer):
@@ -41,9 +40,9 @@ def get_drawer_handle_pos(drawer):
         drawer, get_drawer_handle_link(drawer))
     return np.array(handle_pos)
 
-def set_drawer_handle_pos(drawer):
-    handle_pos, _ = bullet.get_link_state(
-        drawer, get_drawer_handle_link(drawer))
+def set_drawer_handle_pos(drawer, pos):
+    handle_pos, _ = bullet.set_link_state(
+        drawer, get_drawer_base_joint(drawer), pos[1])
     return np.array(handle_pos)
 
 
