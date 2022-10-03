@@ -59,7 +59,7 @@ class PlaceTask(Task):
     def target_pos(self):
         return self._target_pos
 
-class DrawerOpenTask(Task):
+class DrawerOpenTask(Task):   
     def done(self, info):
         return info['drawer_opened']
 

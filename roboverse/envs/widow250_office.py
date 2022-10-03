@@ -17,7 +17,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 num_objects=7,
                 object_names=('eraser', 'shed', 'pepsi_bottle', 'gatorade', 'eraser_2', 'shed_2', 'pepsi_bottle_2'),
                 object_targets=('tray', 'container', 'drawer_inside'),
-                target_object='gatorade',
+                target_object='eraser',
                 object_scales=(0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8),
                 object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0),
                                      (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
@@ -117,6 +117,9 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.left_opening = left_opening
         self.start_opened = start_opened
 
+        self.target_object = target_object
+        self.target_object_target = object_targets[object_names.index(target_object)]
+
         self.drawer_pos = drawer_pos
         self.drawer_quat = drawer_quat
         self.left_opening = left_opening
@@ -157,8 +160,6 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.fixed_init_pos = fixed_init_pos
         self.subtasks = None
 
-#         import ipdb
-#         ipdb.set_trace()
         super(Widow250OfficeEnv, self).__init__(
             object_names=object_names,
             target_object=target_object,
@@ -378,7 +379,6 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
     def get_info(self):
         info = AttrDict()
-
         # check whether target object is grasped
         if hasattr(self.current_subtask, "object"):
             info.grasp_success = object_utils.check_grasp(self.current_subtask.object,
@@ -392,12 +392,15 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                                                                  self.objects, self.current_subtask.target_pos,
                                                                  self.place_success_height_threshold,
                                                                  self.place_success_radius_threshold)
-
+        # check whether target object is placed in target container
+        info.target_place_success = object_utils.check_in_container(self.target_object,
+                                                             self.objects, self.get_target_position(self.target_object_target),
+                                                             self.place_success_height_threshold,
+                                                             self.place_success_radius_threshold)
         # check whether drawer is opened
         info.drawer_opened_percentage = self.get_drawer_opened_percentage()
         info.drawer_opened = info.drawer_opened_percentage > self.drawer_opened_success_thresh
         info.drawer_closed = info.drawer_opened_percentage < self.drawer_closed_success_thresh
-
         return info
 
     def get_reward(self, info):
