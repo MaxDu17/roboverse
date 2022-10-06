@@ -26,7 +26,15 @@ def get_link_state(body_id, link_index):
     return np.asarray(position), np.asarray(orientation)
 
 def set_link_state(body_id, link_index, position):
-    p.resetJointState(body_id, link_index, position) #, orientation)
+    joint_pos, _, _, _ = p.getJointState(body_id, link_index)
+    COM_pos, _ = get_link_state(body_id, link_index)
+
+    abs_diff = np.linalg.norm(COM_pos - position)
+    diff = position[0] - COM_pos[0]
+    print(position, COM_pos, diff)
+    # print(joint_pos, diff)
+
+    p.resetJointState(body_id, link_index, joint_pos + diff)
     return get_link_state(body_id, link_index)[0:2] #to sanity check
 
 def get_joint_info(body_id, joint_id, key):

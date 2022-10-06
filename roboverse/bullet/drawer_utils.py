@@ -32,7 +32,7 @@ def get_drawer_pos(drawer):
 
 def set_drawer_pos(drawer, pos):
     drawer_pos, _ = bullet.set_link_state(
-        drawer, get_drawer_base_joint(drawer), pos[1])
+        drawer, get_drawer_base_joint(drawer), pos)
     return np.array(drawer_pos)
 
 def get_drawer_handle_pos(drawer):
@@ -41,9 +41,39 @@ def get_drawer_handle_pos(drawer):
     return np.array(handle_pos)
 
 def set_drawer_handle_pos(drawer, pos):
-    handle_pos, _ = bullet.set_link_state(
-        drawer, get_drawer_base_joint(drawer), pos[1])
-    return np.array(handle_pos)
+    current_pos, _ = bullet.get_link_state(
+        drawer, get_drawer_handle_link(drawer))
+
+    if np.linalg.norm(pos - current_pos) > 0.02:
+        direction = 1 if (pos[1] - current_pos[1]) > 0 else -1 #hacky but it works 
+        drawer_frame_joint_idx = get_drawer_base_joint(drawer)
+
+        command = 0.5*direction
+
+        # Wait a little before closing
+        p.setJointMotorControl2(
+            drawer,
+            drawer_frame_joint_idx,
+            controlMode=p.VELOCITY_CONTROL,
+            targetVelocity=command,
+            force=5
+        )
+
+        while np.linalg.norm(pos - current_pos) > 0.026:
+            print("\t", np.linalg.norm(pos - current_pos))
+            control.step_simulation(1)
+            current_pos, _ = bullet.get_link_state(
+                drawer, get_drawer_handle_link(drawer))
+
+        p.setJointMotorControl2(
+            drawer,
+            drawer_frame_joint_idx,
+            controlMode=p.VELOCITY_CONTROL,
+            targetVelocity=0,
+            force=5
+        )
+        control.step_simulation(10)
+    # return np.array(handle_pos)
 
 
 def get_drawer_opened_percentage(

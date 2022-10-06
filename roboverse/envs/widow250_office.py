@@ -355,16 +355,19 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         ee_pos = arm[0 : 3]
         ee_quat = arm[3 : 7]
         gripper_state = arm[7 : 9]
+        drawer_post = self.set_drawer_handle_pos(drawer)
+        pos_post, quat_post, gripper_post = self.set_robot_state(ee_pos, ee_quat, gripper_state)
 
         object_post = self.set_states(self.objects, object)
         container_post = self.set_states(self.containers, container)
         desk_post = self.set_states(self.desk_objects, desk)
-        drawer_post = self.set_drawer_handle_pos(drawer)
-        pos_post, quat_post, gripper_post = self.set_robot_state(ee_pos, ee_quat, gripper_state)
 
-        print(f"object:{np.linalg.norm(object_post - object)}, container:{np.linalg.norm(container - container_post)},"
-              f"desk:{np.linalg.norm(desk_post - desk)}, drawer:{np.linalg.norm(drawer_post - drawer)},"
-              f"pos:{np.linalg.norm(pos_post - ee_pos)}, quat:{np.linalg.norm(quat_post - ee_quat)},"
+
+        # container: {np.linalg.norm(container - container_post)}
+        # desk: {np.linalg.norm(desk_post - desk)},
+        print(f"object:{np.linalg.norm(object_post - object)},"
+              f"\t drawer:{np.linalg.norm(drawer_post - drawer)},"
+              f"pos:{np.linalg.norm(pos_post - ee_pos)}, \t quat:{np.linalg.norm(quat_post - ee_quat)},"
               f"gripper:{np.linalg.norm(gripper_post - gripper_state)}")
 
     # set the object state in accordance to the given
