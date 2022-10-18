@@ -83,8 +83,8 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 
         t3 = time.time()
         next_observation, reward, done, info = env.step(action)
-        # import ipdb
-        # ipdb.set_trace()
+        import ipdb
+        ipdb.set_trace()
         t4 = time.time()
 #         import ipdb; ipdb.set_trace()
         add_transition(traj, observation, action, reward, info, agent_info,
@@ -121,7 +121,9 @@ def dump2h5(traj, path, image_rendered):
 
     states = np.array([o['state'] for o in traj['observations']])
     if image_rendered:
-        images = np.array([o['image'] for o in traj['observations']])
+        # images_third_person = np.array([o['images_third_person'] for o in traj['observations']])
+        images = np.array([o['images'] for o in traj['observations']])
+        # images_eye_in_hand = np.array([o['images_eye_in_hand'] for o in traj['observations']])
     actions = np.array(traj['actions'])
     rewards = np.array(traj['rewards'])
     terminals = np.array(traj['terminals'])
@@ -133,6 +135,8 @@ def dump2h5(traj, path, image_rendered):
     traj_data = f.create_group("traj0")
     traj_data.create_dataset("states", data=states)
     if image_rendered:
+        # traj_data.create_dataset("images_third_person", data=images_third_person, dtype=np.uint8)
+        # traj_data.create_dataset("images_eye_in_hand", data=images_eye_in_hand, dtype=np.uint8)
         traj_data.create_dataset("images", data=images, dtype=np.uint8)
     traj_data.create_dataset("actions", data=actions)
     traj_data.create_dataset("rewards", data=rewards)

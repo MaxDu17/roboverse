@@ -13,7 +13,7 @@ ENVIRONMENT_SPECS = (
                        ':Widow250OfficeEnv',
         'kwargs': {'reward_type': 'pick_place',
                    'control_mode': 'discrete_gripper',
-                   'observation_mode': 'pixels',
+                   'observation_mode': 'pixels_eye_hand',
 
                    'random_shuffle_object': True,
                    'random_shuffle_target': True,

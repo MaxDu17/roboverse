@@ -6,6 +6,8 @@ import roboverse.bullet as bullet
 from roboverse.envs import objects
 from roboverse.bullet import object_utils
 from roboverse.envs.multi_object import MultiObjectEnv
+from roboverse.utils import transform_utils as T
+import math
 
 END_EFFECTOR_INDEX = 8
 # RESET_JOINT_VALUES = [1.57, -0.6, -0.6, 0, -1.57, 0., 0., 0.036, -0.036]
@@ -38,6 +40,9 @@ GRIPPER_CLOSED_STATE = [0.015, -0.015]
 
 ACTION_DIM = 8
 
+
+def quat_to_rpy(quat):
+    return T.mat2euler(T.quat2mat(quat))
 
 class Widow250Env(gym.Env, Serializable):
 
@@ -310,9 +315,10 @@ class Widow250Env(gym.Env, Serializable):
         gripper_binary_state = [float(self.is_gripper_open)]
         ee_pos, ee_quat = bullet.get_link_state(
             self.robot_id, self.end_effector_index)
-        # import pdb;pdb.set_trace()
+        # import ipdb;ipdb.set_trace()
         object_position, object_orientation = bullet.get_object_position(
             self.objects[self.target_object])
+
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
             image_observation = np.float32(image_observation.flatten()) / 255.0
@@ -322,6 +328,19 @@ class Widow250Env(gym.Env, Serializable):
                 'state': np.concatenate(
                     (ee_pos, ee_quat, gripper_state, gripper_binary_state)),
                 'image': image_observation
+            }
+        elif self.observation_mode == 'pixels_eye_hand':
+            import ipdb
+            ipdb.set_trace()
+            image_observation, eye_in_hand = self.render_obs(eye_in_hand = True)
+            image_observation = np.float32(image_observation.flatten()) / 255.0
+            observation = {
+                'object_position': object_position,
+                'object_orientation': object_orientation,
+                'state': np.concatenate(
+                    (ee_pos, ee_quat, gripper_state, gripper_binary_state)),
+                'image': image_observation,
+                'image_eye_in_hand' : eye_in_hand
             }
         else:
             # raise NotImplementedError
@@ -358,13 +377,46 @@ class Widow250Env(gym.Env, Serializable):
             self.grasp_success_object_gripper_threshold)
         return info
 
-    def render_obs(self, res=None):
+    def render_obs(self, res=None, eye_in_hand = True):
+        print("not valid eye in hand parameters!")
         res = self.observation_img_dim if res is None else res
+        #TODO: ADD EYE IN HAND IMAGE
+        ### EYE IN HAND ###
         img, depth, segmentation = bullet.render(
             res, res,
             self._view_matrix_obs, self._projection_matrix_obs, shadow=0)
+
+        import math
+        if eye_in_hand:
+            ee_pos, ee_quat = bullet.get_link_state(
+                self.robot_id, self.end_effector_index)
+
+            roll, pitch, yaw = quat_to_rpy(ee_quat) #euler_from_quaternion(ee_quat)
+            target_pos = ee_pos.copy()
+            target_pos[2] = -0.4
+            distance = ee_pos[2] - (-0.4)
+            print(target_pos, distance)
+            eye_hand_view_matrix_args = dict(target_pos=target_pos,
+                                    distance=distance,
+                                    yaw=math.degrees(yaw),
+                                    pitch=math.degrees(pitch) - 90,
+                                    roll=math.degrees(yaw),
+                                    up_axis_index=2)
+
+            eye_hand_view_matrix_obs = bullet.get_view_matrix(**eye_hand_view_matrix_args)
+            eye_hand_projection_matrix_obs = bullet.get_projection_matrix(
+                self.observation_img_dim, self.observation_img_dim)
+
+            eye_hand_img, _, _ = bullet.render(
+                res, res,
+                eye_hand_view_matrix_obs, eye_hand_projection_matrix_obs, shadow=0)
+
         if self.transpose_image:
             img = np.transpose(img, (2, 0, 1))
+
+        if eye_in_hand:
+            return img, eye_hand_img
+
         return img
 
     def _set_action_space(self):
@@ -404,6 +456,9 @@ class Widow250Env(gym.Env, Serializable):
 
     def close(self):
         bullet.disconnect()
+
+
+
 
 
 class Widow250MultiObjectEnv(MultiObjectEnv, Widow250Env):

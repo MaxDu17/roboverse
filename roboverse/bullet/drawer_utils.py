@@ -45,7 +45,7 @@ def set_drawer_handle_pos(drawer, pos):
         drawer, get_drawer_handle_link(drawer))
 
     if np.linalg.norm(pos - current_pos) > 0.02:
-        direction = 1 if (pos[1] - current_pos[1]) > 0 else -1 #hacky but it works 
+        direction = 1 if (pos[1] - current_pos[1]) > 0 else -1 #hacky but it works
         drawer_frame_joint_idx = get_drawer_base_joint(drawer)
 
         command = 0.5*direction
@@ -59,12 +59,14 @@ def set_drawer_handle_pos(drawer, pos):
             force=5
         )
 
-        while np.linalg.norm(pos - current_pos) > 0.026:
+        count = 0
+        # make sure that we are not getting stuck in an infinite loop 
+        while np.linalg.norm(pos - current_pos) > 0.026 and count < 100:
             print("\t", np.linalg.norm(pos - current_pos))
             control.step_simulation(1)
             current_pos, _ = bullet.get_link_state(
                 drawer, get_drawer_handle_link(drawer))
-
+            count += 1
         p.setJointMotorControl2(
             drawer,
             drawer_frame_joint_idx,
