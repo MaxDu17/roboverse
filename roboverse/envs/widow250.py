@@ -330,8 +330,6 @@ class Widow250Env(gym.Env, Serializable):
                 'image': image_observation
             }
         elif self.observation_mode == 'pixels_eye_hand':
-            import ipdb
-            ipdb.set_trace()
             image_observation, eye_in_hand = self.render_obs(eye_in_hand = True)
             image_observation = np.float32(image_observation.flatten()) / 255.0
             observation = {
@@ -361,7 +359,6 @@ class Widow250Env(gym.Env, Serializable):
         return reward
 
     def get_info(self):
-
         info = {'grasp_success': False}
         for object_name in self.object_names:
             grasp_success = object_utils.check_grasp(
@@ -377,25 +374,23 @@ class Widow250Env(gym.Env, Serializable):
             self.grasp_success_object_gripper_threshold)
         return info
 
-    def render_obs(self, res=None, eye_in_hand = True):
-        print("not valid eye in hand parameters!")
+    def render_obs(self, res=None, eye_in_hand = False):
         res = self.observation_img_dim if res is None else res
-        #TODO: ADD EYE IN HAND IMAGE
-        ### EYE IN HAND ###
         img, depth, segmentation = bullet.render(
             res, res,
             self._view_matrix_obs, self._projection_matrix_obs, shadow=0)
 
-        import math
         if eye_in_hand:
             ee_pos, ee_quat = bullet.get_link_state(
                 self.robot_id, self.end_effector_index)
 
-            roll, pitch, yaw = quat_to_rpy(ee_quat) #euler_from_quaternion(ee_quat)
+            roll, pitch, yaw = quat_to_rpy(ee_quat)
+
+            # have camera focus on table
             target_pos = ee_pos.copy()
             target_pos[2] = -0.4
-            distance = ee_pos[2] - (-0.4)
-            print(target_pos, distance)
+            target_pos[1] += 0.07
+            distance = 0.11 + ee_pos[2] - (-0.4)
             eye_hand_view_matrix_args = dict(target_pos=target_pos,
                                     distance=distance,
                                     yaw=math.degrees(yaw),

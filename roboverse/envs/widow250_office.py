@@ -14,13 +14,15 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 container_name='open_box',
                 reward_type='pick_place',
 
-                num_objects=7,
-                object_names=('eraser', 'shed', 'pepsi_bottle', 'gatorade', 'eraser_2', 'shed_2', 'pepsi_bottle_2'),
-                object_targets=('tray', 'container', 'drawer_inside'),
+                num_objects=4,
+                object_names=('eraser', 'shed', 'pepsi_bottle', 'gatorade'), #, 'eraser_2', 'shed_2', 'pepsi_bottle_2'),
+                # object_targets=('tray', 'container', 'drawer_inside'),
+                object_targets=('tray', 'container'), #
                 target_object='eraser',
-                object_scales=(0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8),
-                object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0),
-                                     (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
+                target_target = "tray",
+                object_scales=(0.8, 0.8, 0.8, 0.8), #, 0.8, 0.8, 0.8),
+                object_orientations=((0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
+                                     # (0, 0, 1, 0), (0, 0, 1, 0), (0, 0, 1, 0)),
 
                 object_position_high=(0.75, .9, -.35),
                 object_position_low=(.3, .1, -.35),
@@ -29,9 +31,9 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                         (0.55123888, -0.17699107, -0.35),
                         (0.84287004, -0.1479069 , -0.35),
                         (0.75200037, -0.14383595, -0.35),
-                        (0.42755662, -0.13711447, -0.35),
-                        (0.39866522,  0.18929185, -0.35),
-                        (0.46422192, -0.23138137, -0.35),
+                        # (0.42755662, -0.13711447, -0.35),
+                        # (0.39866522,  0.18929185, -0.35),
+                        # (0.46422192, -0.23138137, -0.35),
                 ),
                 area_upper_left_low=(0.75, -0.15, -0.35),
                 area_upper_left_high=(0.85, -0.1, -0.35),
@@ -118,7 +120,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
         self.start_opened = start_opened
 
         self.target_object = target_object
-        self.target_object_target = object_targets[object_names.index(target_object)]
+        self.target_object_target = target_target
 
         self.drawer_pos = drawer_pos
         self.drawer_quat = drawer_quat
@@ -262,13 +264,21 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             arm_state,
             desk_object_states
         ))
-
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
             image_observation = np.float32(image_observation)  # / 255.0
             observation = {
                 'state': state,
                 'image': image_observation
+            }
+        elif self.observation_mode == 'pixels_eye_hand':
+            third_person, eye_in_hand = self.render_obs(eye_in_hand = True)
+            third_person = np.float32(third_person)  # / 255.0
+            eye_in_hand = np.float32(eye_in_hand)  # / 255.0
+            observation = {
+                'state': state,
+                'image': third_person,
+                "image_eye_in_hand": eye_in_hand
             }
         else:
             observation = {
@@ -326,7 +336,10 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 area_occurance[1] += 1
             elif self.object_in_area(object_pos, self.area_lower_right_low, self.area_lower_right_high):
                 area_occurance[2] += 1
-        return area_occurance, object_occurance
+
+        target_index = self.task_object_names.index(self.target_object)
+        target_task = int(target_index < len(self.object_targets) and self.object_targets[target_index] == self.target_object_target)
+        return area_occurance, object_occurance, target_task
 
     def object_in_area(self, object_pos, area_low, area_high):
         if np.all(np.greater_equal(object_pos, area_low)) and np.all(np.greater_equal(area_high, object_pos)):

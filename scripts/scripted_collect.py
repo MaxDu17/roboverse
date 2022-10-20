@@ -15,16 +15,24 @@ EPSILON = 0.1
 # running for debugging purposes
 # python scripted_collect.py -n 5 -t 250 -e Widow250OfficeRand-v0 -pl tableclean -a table_clean -d office_TA
 
+
 def add_transition(traj, observation, action, reward, info, agent_info, done,
                    next_observation, img_dim, image_rendered=True, video_writer = None):
     if image_rendered:
-        observation["image"] = np.reshape(np.uint8(observation["image"] * 255.),
+        observation["image"] = np.reshape(np.uint8(observation["image"]),
                                         (img_dim, img_dim, 3))
         next_observation["image"] = np.reshape(
-            np.uint8(next_observation["image"] * 255.), (img_dim, img_dim, 3))
+            np.uint8(next_observation["image"]), (img_dim, img_dim, 3))
+
+        observation["image_eye_in_hand"] = np.reshape(np.uint8(observation["image_eye_in_hand"]),
+                                        (img_dim, img_dim, 3))
+        next_observation["image_eye_in_hand"] = np.reshape(
+            np.uint8(next_observation["image_eye_in_hand"]), (img_dim, img_dim, 3))
 
         if video_writer is not None:
-            video_writer.append_data(observation["image"])
+            frame = np.concatenate((observation["image"], observation["image_eye_in_hand"]), axis=0)
+            video_writer.append_data(frame)
+
     traj["observations"].append(observation)
     traj["next_observations"].append(next_observation)
     traj["actions"].append(action)
@@ -45,7 +53,7 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     img_dim = env.observation_img_dim
     env.reset()
     policy.reset()
-    time.sleep(1)
+    time.sleep(0.1)
     traj = dict(
         observations=[],
         actions=[],
@@ -61,9 +69,7 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     total_reward_thresh = sum([subtask.REWARD for subtask in env.subtasks])
     for j in range(num_timesteps):
         # print(j)
-        t1 = time.time()
         action, agent_info, add_noise = policy.get_action()
-        t2 = time.time()
         # In case we need to pad actions by 1 for easier realNVP modelling
         env_action_dim = env.action_space.shape[0]
         if env_action_dim - action.shape[0] == 1:
@@ -78,15 +84,8 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 
         action = np.clip(action, -1 + EPSILON, 1 - EPSILON)
         observation = env.get_observation()
-        # import ipdb
-        # ipdb.set_trace()
 
-        t3 = time.time()
         next_observation, reward, done, info = env.step(action)
-        import ipdb
-        ipdb.set_trace()
-        t4 = time.time()
-#         import ipdb; ipdb.set_trace()
         add_transition(traj, observation, action, reward, info, agent_info,
                        done, next_observation, img_dim, image_rendered, video_writer)
         total_reward += reward
@@ -116,14 +115,11 @@ def collect_one_traj(env, policy, num_timesteps, noise,
 def dump2h5(traj, path, image_rendered):
     """Dumps a collected trajectory to HDF5 file."""
     # convert to numpy arrays
-    import ipdb
-    ipdb.set_trace()
 
     states = np.array([o['state'] for o in traj['observations']])
     if image_rendered:
-        # images_third_person = np.array([o['images_third_person'] for o in traj['observations']])
-        images = np.array([o['images'] for o in traj['observations']])
-        # images_eye_in_hand = np.array([o['images_eye_in_hand'] for o in traj['observations']])
+        images = np.array([o['image'] for o in traj['observations']])
+        images_eye_in_hand = np.array([o['image_eye_in_hand'] for o in traj['observations']])
     actions = np.array(traj['actions'])
     rewards = np.array(traj['rewards'])
     terminals = np.array(traj['terminals'])
@@ -135,9 +131,8 @@ def dump2h5(traj, path, image_rendered):
     traj_data = f.create_group("traj0")
     traj_data.create_dataset("states", data=states)
     if image_rendered:
-        # traj_data.create_dataset("images_third_person", data=images_third_person, dtype=np.uint8)
-        # traj_data.create_dataset("images_eye_in_hand", data=images_eye_in_hand, dtype=np.uint8)
-        traj_data.create_dataset("images", data=images, dtype=np.uint8)
+        traj_data.create_dataset("image", data=images, dtype=np.uint8)
+        traj_data.create_dataset("image_eye_in_hand", data=images_eye_in_hand, dtype=np.uint8)
     traj_data.create_dataset("actions", data=actions)
     traj_data.create_dataset("rewards", data=rewards)
 
@@ -162,9 +157,15 @@ def main(args):
     if not osp.exists(data_save_path):
         os.makedirs(data_save_path)
 
+    kwargs = {
+        "observation_img_dim": 84,
+        'observation_mode': 'pixels_eye_hand',
+        "control_mode" : "discrete_gripper",
+    }
+
     env = roboverse.make(args.env_name,
                          gui=args.gui,
-                         transpose_image=False)
+                         transpose_image=False, **kwargs)
 
     data = []
     assert args.policy_name in policies.keys(), f"The policy name must be one of: {policies.keys()}"
@@ -181,6 +182,7 @@ def main(args):
 
     total_area_occurance = [0, 0, 0]
     total_object_occurance = {}
+    total_task_occurance = 0
     for object_name in env.object_names:
         total_object_occurance[object_name] = 0
 
@@ -201,17 +203,20 @@ def main(args):
                         args.image_rendered)
             num_success += 1
             num_saved += 1
-            area_occurance, object_occurance = env.get_occurance()
+            area_occurance, object_occurance, task_occurance = env.get_occurance()
             for i in range(len(area_occurance)):
                 total_area_occurance[i] += area_occurance[i]
             for object_name in env.object_names:
                 total_object_occurance[object_name] += object_occurance[object_name]
+            total_task_occurance += task_occurance
             # print(total_area_occurance, total_object_occurance)
             fo = open(os.path.join(data_save_path, 'occurance.txt'), "w")
             str_area = f"area_occurance: {total_area_occurance}\n"
             str_object = f"object_occurance: {total_object_occurance}\n"
+            str_task = f"task_occurance: {total_task_occurance}\n"
             fo.write(str_area)
             fo.write(str_object)
+            fo.write(str_task)
             fo.close()
             progress_bar.update(1)
         elif args.save_all:

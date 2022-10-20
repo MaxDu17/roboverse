@@ -24,43 +24,43 @@ class TableClean:
 
             if object_target == 'drawer_inside':
                 pick_drawer_policy = {}
-                pick_drawer_policy['pick_policy'] = PickPlaceTarget(env, 
-                        pick_height_thresh=pick_height_thresh, 
+                pick_drawer_policy['pick_policy'] = PickPlaceTarget(env,
+                        pick_height_thresh=pick_height_thresh,
                         xyz_action_scale=xyz_action_scale,
-                        pick_point_noise=pick_point_noise, 
+                        pick_point_noise=pick_point_noise,
                         drop_point_noise=drop_point_noise,
                         object_name=object_name,
                         object_target=object_target,
                         return_origin_thresh=return_origin_thresh_drawer
                 )
-                pick_drawer_policy['drawer_open_policy'] = DrawerOpen(env, 
+                pick_drawer_policy['drawer_open_policy'] = DrawerOpen(env,
                         xyz_action_scale=xyz_action_scale,
                         return_origin_thresh=return_origin_thresh)
-                pick_drawer_policy['drawer_close_policy'] = DrawerClose(env,                       
+                pick_drawer_policy['drawer_close_policy'] = DrawerClose(env,
                         xyz_action_scale=xyz_action_scale,
                         return_origin_thresh=return_origin_thresh)
                 self.pick_drawer_policies.append(pick_drawer_policy)
                 # pick_drawer_policy['drawer_close_policy']
             else:
-                pick_policy = PickPlaceTarget(env, 
-                        pick_height_thresh=pick_height_thresh, 
+                pick_policy = PickPlaceTarget(env,
+                        pick_height_thresh=pick_height_thresh,
                         xyz_action_scale=xyz_action_scale,
-                        pick_point_noise=pick_point_noise, 
+                        pick_point_noise=pick_point_noise,
                         drop_point_noise=drop_point_noise,
                         object_name=object_name,
                         object_target=object_target,
                         return_origin_thresh=return_origin_thresh,
                 )
                 self.pick_policies.append(pick_policy)
-        
         self.reset()
-    
+
     def reset(self):
         self.object_names= self.env.task_object_names
         self.object_targets = self.env.object_targets
         num_drawer_target = 0
         num_container_target = 0
         for object_name, object_target in zip(self.object_names, self.object_targets):
+            print(object_name, object_target)
             if object_target == 'drawer_inside':
                 pick_drawer_policy = self.pick_drawer_policies[num_drawer_target]
                 pick_drawer_policy['pick_policy'].reset(object_name=object_name, object_target=object_target)
@@ -72,7 +72,7 @@ class TableClean:
             else:
                 self.pick_policies[num_container_target].reset(object_name=object_name, object_target=object_target)
                 num_container_target += 1
-            
+
         # for pick_policy in self.pick_policies:
         #     pick_policy.reset()
         # for pick_drawer_policy in self.pick_drawer_policies:
@@ -94,7 +94,7 @@ class TableClean:
     #             print(f"current policy: {self.pick_policies[i].object_name}, is agent done? {agent_info['done']}")
 
     #             return action, agent_info
-        
+
     #     if all_pick_done:
     #         return self.drawer_policy.get_action()
     def get_action(self):
@@ -107,7 +107,7 @@ class TableClean:
                 # print(f"current policy: {pick_policy.object_name}, is agent done? {agent_info['done']}")
 
                 return action, agent_info, noise
-        
+
         for pick_drawer_policy in self.pick_drawer_policies:
             pick_policy = pick_drawer_policy['pick_policy']
             drawer_open_policy = pick_drawer_policy['drawer_open_policy']
@@ -125,7 +125,7 @@ class TableClean:
                     else:
                         action, agent_info, noise = drawer_close_policy.get_action()
                         agent_info['done'] = self.done
-                        
+
                         all_done = True
                         for pick_drawer_policy in self.pick_drawer_policies:
                             pick_policy = pick_drawer_policy['pick_policy']
@@ -143,7 +143,7 @@ class TableClean:
                 return action, agent_info, noise
 
 
-        
+
 
 
 
