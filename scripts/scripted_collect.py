@@ -57,7 +57,8 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     # FOR ONLY TARGET TASK PICK AND PLACE
     # policy.reset(object_target = env.target_object_target, object_name = env.target_object)
 
-    # policy.reset() # object_target = "tray", object_name = "eraser")
+    # FOR VANILLA OFFICE CLEANING
+    # policy.reset()
     time.sleep(0.1)
     traj = dict(
         observations=[],
@@ -84,8 +85,6 @@ def collect_one_traj(env, policy, num_timesteps, noise,
             action += np.random.normal(scale=noise, size=(env_action_dim,))
         else:
             action += np.random.normal(scale=noise*0.3, size=(env_action_dim,))
-
-        # action += np.random.normal(scale=noise, size=(env_action_dim,))
 
         action = np.clip(action, -1 + EPSILON, 1 - EPSILON)
         observation = env.get_observation()
@@ -122,12 +121,14 @@ def dump2h5(traj, path, image_rendered, occurence):
     # convert to numpy arrays
 
     states = np.array([o['state'] for o in traj['observations']])
+    proprio = np.array([o['robot'] for o in traj['observations']])
     if image_rendered:
         images = np.array([o['image'] for o in traj['observations']])
         images_eye_in_hand = np.array([o['image_eye_in_hand'] for o in traj['observations']])
     actions = np.array(traj['actions'])
     rewards = np.array(traj['rewards'])
     terminals = np.array(traj['terminals'])
+    
     # create HDF5 file
     f = h5py.File(path, "w")
     f.create_dataset("traj_per_file", data=1)
@@ -138,6 +139,7 @@ def dump2h5(traj, path, image_rendered, occurence):
     # store trajectory info in traj0 group
     traj_data = f.create_group("traj0")
     traj_data.create_dataset("states", data=states)
+    traj_data.create_dataset("proprio", data=proprio)
     if image_rendered:
         traj_data.create_dataset("image", data=images, dtype=np.uint8)
         traj_data.create_dataset("image_eye_in_hand", data=images_eye_in_hand, dtype=np.uint8)
@@ -200,11 +202,14 @@ def main(args):
 
     while num_saved < args.num_trajectories:
         num_attempts += 1
-        video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
+        video_writer = None
+        if num_saved % 20 == 0:
+            video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
         traj, success, num_steps = collect_one_traj(
             env, policy, args.num_timesteps, args.noise,
             accept_trajectory_key, args.image_rendered, args, video_writer)
-        video_writer.close()
+        if video_writer is not None:
+            video_writer.close()
         # print("num_timesteps: ", num_steps)
         if True: #success:
             if args.gui:

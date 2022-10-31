@@ -261,13 +261,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             object_states,
             container_states,
             drawer_handle_state,
-            arm_state,
+            # arm_state, #used to be here, but separated it out
             desk_object_states
         ))
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
             image_observation = np.float32(image_observation)  # / 255.0
             observation = {
+                "robot": arm_state,
                 'state': state,
                 'image': image_observation
             }
@@ -276,12 +277,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             third_person = np.float32(third_person)  # / 255.0
             eye_in_hand = np.float32(eye_in_hand)  # / 255.0
             observation = {
+                "robot": arm_state,
                 'state': state,
                 'image': third_person,
                 "image_eye_in_hand": eye_in_hand
             }
         else:
             observation = {
+                "robot": arm_state,
                 'state': state
             }
 
