@@ -337,9 +337,19 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             elif self.object_in_area(object_pos, self.area_lower_right_low, self.area_lower_right_high):
                 area_occurance[2] += 1
 
-        target_index = self.task_object_names.index(self.target_object)
-        target_task = int(target_index < len(self.object_targets) and self.object_targets[target_index] == self.target_object_target)
-        return area_occurance, object_occurance, target_task
+
+
+        # target_index = self.task_object_names.index(self.target_object)
+        # target_task = int(target_index < len(self.object_targets) and self.object_targets[target_index] == self.target_object_target)
+        target_task = object_utils.check_in_container(self.target_object,
+                                                             self.objects, self.get_target_position(self.target_object_target),
+                                                             self.place_success_height_threshold,
+                                                             0.25)
+                                                             # self.place_success_radius_threshold)
+        # import ipdb
+        # ipdb.set_trace()
+
+        return area_occurance, object_occurance, int(target_task)
 
     def object_in_area(self, object_pos, area_low, area_high):
         if np.all(np.greater_equal(object_pos, area_low)) and np.all(np.greater_equal(area_high, object_pos)):
@@ -396,14 +406,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
     def get_info(self):
         info = AttrDict()
         # check whether target object is grasped
-        if hasattr(self.current_subtask, "object"):
+        if len(self.subtasks) > 0 and hasattr(self.current_subtask, "object"):
             info.grasp_success = object_utils.check_grasp(self.current_subtask.object,
                                                           self.objects, self.robot_id,
                                                           self.end_effector_index, self.grasp_success_height_threshold,
                                                           self.grasp_success_object_gripper_threshold)
 
         # check whether target object is placed in target container
-        if hasattr(self.current_subtask, "target_pos"):
+        if len(self.subtasks) > 0 and hasattr(self.current_subtask, "target_pos"):
             info.place_success = object_utils.check_in_container(self.current_subtask.object,
                                                                  self.objects, self.current_subtask.target_pos,
                                                                  self.place_success_height_threshold,

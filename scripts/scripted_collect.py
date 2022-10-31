@@ -12,10 +12,6 @@ import imageio
 from roboverse.utils import get_timestamp
 EPSILON = 0.1
 
-# running for debugging purposes
-# python scripted_collect.py -n 5 -t 250 -e Widow250OfficeRand-v0 -pl tableclean -a table_clean -d office_TA
-
-
 def add_transition(traj, observation, action, reward, info, agent_info, done,
                    next_observation, img_dim, image_rendered=True, video_writer = None):
     if image_rendered:
@@ -52,7 +48,16 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     success = False
     img_dim = env.observation_img_dim
     env.reset()
-    policy.reset()
+
+    # FOR RANDOM PICK PLACE
+    current_object = env.task_object_names[0]
+    current_target = env.object_targets[0]
+    policy.reset(object_target = current_target, object_name = current_object)
+
+    # FOR ONLY TARGET TASK PICK AND PLACE
+    # policy.reset(object_target = env.target_object_target, object_name = env.target_object)
+
+    # policy.reset() # object_target = "tray", object_name = "eraser")
     time.sleep(0.1)
     traj = dict(
         observations=[],
@@ -112,7 +117,7 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     return traj, success, num_steps
 
 
-def dump2h5(traj, path, image_rendered):
+def dump2h5(traj, path, image_rendered, occurence):
     """Dumps a collected trajectory to HDF5 file."""
     # convert to numpy arrays
 
@@ -126,6 +131,9 @@ def dump2h5(traj, path, image_rendered):
     # create HDF5 file
     f = h5py.File(path, "w")
     f.create_dataset("traj_per_file", data=1)
+
+    # this is the oracle state!
+    f.create_dataset("relevant_demo", data=occurence)
 
     # store trajectory info in traj0 group
     traj_data = f.create_group("traj0")
@@ -161,6 +169,8 @@ def main(args):
         "observation_img_dim": 84,
         'observation_mode': 'pixels_eye_hand',
         "control_mode" : "discrete_gripper",
+        "target_object" : 'eraser',
+        "target_target" : "tray"
     }
 
     env = roboverse.make(args.env_name,
@@ -172,7 +182,9 @@ def main(args):
     # assert args.accept_trajectory_key in env.get_info().keys(), \
     #     f"""The accept trajectory key must be one of: {env.get_info().keys()}"""
     policy_class = policies[args.policy_name]
+    # policy = policy_class(env)
     policy = policy_class(env)
+
     num_success = 0
     num_saved = 0
     num_attempts = 0
@@ -199,11 +211,13 @@ def main(args):
                 print("num_timesteps: ", num_steps)
 
             data.append(traj)
+            area_occurance, object_occurance, task_occurance = env.get_occurance()
+
             dump2h5(traj, os.path.join(data_save_path, 'rollout_{}.h5'.format(num_saved)),
-                        args.image_rendered)
+                        args.image_rendered, task_occurance)
             num_success += 1
             num_saved += 1
-            area_occurance, object_occurance, task_occurance = env.get_occurance()
+
             for i in range(len(area_occurance)):
                 total_area_occurance[i] += area_occurance[i]
             for object_name in env.object_names:

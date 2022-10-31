@@ -1,3 +1,3 @@
-area_occurance: [10, 7, 4]
-object_occurance: {'eraser': 9, 'shed': 9, 'pepsi_bottle': 9, 'gatorade': 9}
-task_occurance: 1
+area_occurance: [405, 375, 272]
+object_occurance: {'eraser': 400, 'shed': 400, 'pepsi_bottle': 400, 'gatorade': 400}
+task_occurance: 101
