@@ -63,7 +63,11 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     # policy.reset(object_target = env.target_object_target, object_name = env.target_object)
 
     # FOR VANILLA OFFICE CLEANING
+<<<<<<< HEAD
     policy.reset()
+=======
+    # policy.reset()
+>>>>>>> refs/remotes/origin/master
     time.sleep(0.1)
     traj = dict(
         observations=[],
@@ -139,7 +143,11 @@ def dump2h5(traj, path, image_rendered, occurence):
     actions = np.array(traj['actions'])
     rewards = np.array(traj['rewards'])
     terminals = np.array(traj['terminals'])
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> refs/remotes/origin/master
     # create HDF5 file
     f = h5py.File(path, "w")
     f.create_dataset("traj_per_file", data=1)
@@ -232,7 +240,11 @@ def main(args):
             video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
         traj, success, num_steps = collect_one_traj(
             env, policy, args.num_timesteps, args.noise,
+<<<<<<< HEAD
             accept_trajectory_key, args.image_rendered, args, last_success, video_writer)
+=======
+            accept_trajectory_key, args.image_rendered, args, video_writer)
+>>>>>>> refs/remotes/origin/master
         if video_writer is not None:
             video_writer.close()
         # print("num_timesteps: ", num_steps)

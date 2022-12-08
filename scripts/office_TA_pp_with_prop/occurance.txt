@@ -1,3 +1,9 @@
+<<<<<<< HEAD
 area_occurance: [1225, 1116, 806]
 object_occurance: {'eraser': 1200, 'shed': 1200, 'pepsi_bottle': 1200, 'gatorade': 1200}
 task_occurance: 144
+=======
+area_occurance: [12, 12, 9]
+object_occurance: {'eraser': 14, 'shed': 14, 'pepsi_bottle': 14, 'gatorade': 14}
+task_occurance: 0
+>>>>>>> refs/remotes/origin/master
