@@ -1,0 +1,3 @@
+area_occurance: [0, 420, 97]
+object_occurance: {'eraser': 245, 'shed': 240, 'pepsi_bottle': 226, 'gatorade': 289}
+task_occurance: 108

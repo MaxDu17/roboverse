@@ -18,6 +18,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
                 object_names=('eraser', 'shed', 'pepsi_bottle', 'gatorade'), #, 'eraser_2', 'shed_2', 'pepsi_bottle_2'),
                 # object_targets=('tray', 'container', 'drawer_inside'),
                 object_targets=('tray', 'container'), #
+                desired_config = None, #{"eraser" : "tray"},
                 target_object='eraser',
                 target_target = "tray",
                 object_scales=(0.8, 0.8, 0.8, 0.8), #, 0.8, 0.8, 0.8),
@@ -121,6 +122,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         self.target_object = target_object
         self.target_object_target = target_target
+        self.desired_config = desired_config #for oracle assignment only
 
         self.drawer_pos = drawer_pos
         self.drawer_quat = drawer_quat
@@ -141,6 +143,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             self.task_object_names = random.sample(self.object_names, self.num_objects)
         else:
             self.task_object_names = self.object_names[:self.num_objects]
+
         self.object_jitter = object_jitter
 
         self.random_shuffle_target = random_shuffle_target
@@ -176,6 +179,7 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
     def generate_tasks(self):
         """Generate subtask list."""
         subtasks = []
+        #TODO: adapt this codebase to work with single and multi-object pick-places
         for object_name, object_target in \
                 zip(self.task_object_names, self.object_targets):
             object_position = self.object_name_pos_map[object_name]
@@ -191,15 +195,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         return subtasks
 
-    def reset(self):
-        if self.random_shuffle_object:
+    def reset(self, reshuffle = True):
+        if self.random_shuffle_object and reshuffle:
             #self.object_names = random.sample(self.object_names, len(self.object_names))
             self.task_object_names = random.sample(self.object_names, self.num_objects)
-        if self.random_shuffle_target:
+        if self.random_shuffle_target and reshuffle:
             self.object_targets = random.sample(self.object_targets, len(self.object_targets))
             #if self.num_objects == 2:
             #    self.object_targets = [self.object_targets[0], self.object_targets[-1]]
-
 
         if self.random_drawer:
             self.drawer_pos = np.random.uniform(
@@ -261,13 +264,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             object_states,
             container_states,
             drawer_handle_state,
-            arm_state,
+            # arm_state, #used to be here, but separated it out
             desk_object_states
         ))
         if self.observation_mode == 'pixels':
             image_observation = self.render_obs()
             image_observation = np.float32(image_observation)  # / 255.0
             observation = {
+                "robot": arm_state,
                 'state': state,
                 'image': image_observation
             }
@@ -276,12 +280,14 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
             third_person = np.float32(third_person)  # / 255.0
             eye_in_hand = np.float32(eye_in_hand)  # / 255.0
             observation = {
+                "robot": arm_state,
                 'state': state,
                 'image': third_person,
                 "image_eye_in_hand": eye_in_hand
             }
         else:
             observation = {
+                "robot": arm_state,
                 'state': state
             }
 
@@ -341,13 +347,25 @@ class Widow250OfficeEnv(Widow250PickPlaceEnv):
 
         # target_index = self.task_object_names.index(self.target_object)
         # target_task = int(target_index < len(self.object_targets) and self.object_targets[target_index] == self.target_object_target)
-        target_task = object_utils.check_in_container(self.target_object,
-                                                             self.objects, self.get_target_position(self.target_object_target),
-                                                             self.place_success_height_threshold,
-                                                             0.25)
-                                                             # self.place_success_radius_threshold)
-        # import ipdb
-        # ipdb.set_trace()
+
+        target_task = 1
+        # basiclaly just see if this current objective satisfies the downstream task
+        for object, target in self.desired_config.items():
+            if object not in self.task_object_names:
+                target_task = 0
+                break
+            obj_index = self.task_object_names.index(object)
+            if self.object_targets[obj_index] != target:
+                target_task = 0
+                break
+
+
+        # target_task = object_utils.check_in_container(self.target_object,
+        #                                                      self.objects, self.get_target_position(self.target_object_target),
+        #                                                      self.place_success_height_threshold,
+        #                                                      # 0.25)
+        #                                                      self.place_success_radius_threshold)
+        # print(self.target_object, self.target_object_target, target_task)
 
         return area_occurance, object_occurance, int(target_task)
 

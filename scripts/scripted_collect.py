@@ -8,6 +8,8 @@ import argparse
 from tqdm import tqdm
 import h5py
 import imageio
+import time
+import json
 
 from roboverse.utils import get_timestamp
 EPSILON = 0.1
@@ -42,22 +44,26 @@ def add_transition(traj, observation, action, reward, info, agent_info, done,
 
 
 def collect_one_traj(env, policy, num_timesteps, noise,
-                     accept_trajectory_key, image_rendered, args, video_writer = None):
+                     accept_trajectory_key, image_rendered, args, reshuffle, video_writer = None):
     num_steps = -1
     rewards = []
     success = False
     img_dim = env.observation_img_dim
-    env.reset()
+    env.reset() # reshuffle argument determines if the environment will be reshuffled. Here, we always reshuffle
+    # env.reset(reshuffle)
 
     # FOR RANDOM PICK PLACE
     current_object = env.task_object_names[0]
     current_target = env.object_targets[0]
-    policy.reset(object_target = current_target, object_name = current_object)
+
+    # policy.reset(object_target = current_target, object_name = current_object)
 
     # FOR ONLY TARGET TASK PICK AND PLACE
+    # print("erasers only!")
     # policy.reset(object_target = env.target_object_target, object_name = env.target_object)
 
-    # policy.reset() # object_target = "tray", object_name = "eraser")
+    # FOR VANILLA OFFICE CLEANING
+    policy.reset()
     time.sleep(0.1)
     traj = dict(
         observations=[],
@@ -72,8 +78,10 @@ def collect_one_traj(env, policy, num_timesteps, noise,
     is_closed = False
     total_reward = 0
     total_reward_thresh = sum([subtask.REWARD for subtask in env.subtasks])
+    observation = env.get_observation()
     for j in range(num_timesteps):
         # print(j)
+        # beg = time.time()
         action, agent_info, add_noise = policy.get_action()
         # In case we need to pad actions by 1 for easier realNVP modelling
         env_action_dim = env.action_space.shape[0]
@@ -85,15 +93,17 @@ def collect_one_traj(env, policy, num_timesteps, noise,
         else:
             action += np.random.normal(scale=noise*0.3, size=(env_action_dim,))
 
-        # action += np.random.normal(scale=noise, size=(env_action_dim,))
-
         action = np.clip(action, -1 + EPSILON, 1 - EPSILON)
-        observation = env.get_observation()
+
 
         next_observation, reward, done, info = env.step(action)
+
         add_transition(traj, observation, action, reward, info, agent_info,
                        done, next_observation, img_dim, image_rendered, video_writer)
         total_reward += reward
+
+        observation = next_observation.copy()
+        # print(time.time() - beg)
 
         if accept_trajectory_key == 'table_clean':
             # print(total_reward)
@@ -122,22 +132,26 @@ def dump2h5(traj, path, image_rendered, occurence):
     # convert to numpy arrays
 
     states = np.array([o['state'] for o in traj['observations']])
+    proprio = np.array([o['robot'] for o in traj['observations']])
     if image_rendered:
         images = np.array([o['image'] for o in traj['observations']])
         images_eye_in_hand = np.array([o['image_eye_in_hand'] for o in traj['observations']])
     actions = np.array(traj['actions'])
     rewards = np.array(traj['rewards'])
     terminals = np.array(traj['terminals'])
+
     # create HDF5 file
     f = h5py.File(path, "w")
     f.create_dataset("traj_per_file", data=1)
 
-    # this is the oracle state!
-    f.create_dataset("relevant_demo", data=occurence)
-
     # store trajectory info in traj0 group
     traj_data = f.create_group("traj0")
+
+    # this is the oracle state!
+    traj_data.create_dataset("relevant_demo", data=occurence, dtype = np.uint8)
+
     traj_data.create_dataset("states", data=states)
+    traj_data.create_dataset("proprio", data=proprio)
     if image_rendered:
         traj_data.create_dataset("image", data=images, dtype=np.uint8)
         traj_data.create_dataset("image_eye_in_hand", data=images_eye_in_hand, dtype=np.uint8)
@@ -165,13 +179,25 @@ def main(args):
     if not osp.exists(data_save_path):
         os.makedirs(data_save_path)
 
-    kwargs = {
-        "observation_img_dim": 84,
-        'observation_mode': 'pixels_eye_hand',
-        "control_mode" : "discrete_gripper",
-        "target_object" : 'eraser',
-        "target_target" : "tray"
-    }
+    with open(args.config) as json_file:
+        kwargs = json.load(json_file)
+
+    # kwargs = {
+    #     "observation_img_dim": 84, #256, #
+    #     'observation_mode': 'pixels_eye_hand',
+    #     "control_mode" : "discrete_gripper",
+    #     "num_objects" : 1,
+    #     "object_names" : ['eraser', 'shed', 'pepsi_bottle', 'gatorade'],
+    #     "random_shuffle_object" : True,
+    #     "random_shuffle_target" : True,
+    #     "object_targets" : ["drawer_inside", 'tray'],
+    #     "original_object_positions" : [
+    #     [0.43620103, 0.12358467, -0.35],
+    #     [0.55123888, -0.17699107, -0.35],
+    #     [0.42755662, -0.13711447, -0.35],
+    #     [0.39866522, 0.18929185, -0.35]],
+    #     "desired_config" : {"eraser" : "drawer_inside"}
+    # }
 
     env = roboverse.make(args.env_name,
                          gui=args.gui,
@@ -198,21 +224,24 @@ def main(args):
     for object_name in env.object_names:
         total_object_occurance[object_name] = 0
 
+    last_success = True
     while num_saved < args.num_trajectories:
         num_attempts += 1
-        video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
+        video_writer = None
+        if num_saved % 20 == 0:
+            video_writer = imageio.get_writer(args.save_directory + f"/demo{num_saved}_{num_attempts}.gif", fps=20)
         traj, success, num_steps = collect_one_traj(
             env, policy, args.num_timesteps, args.noise,
-            accept_trajectory_key, args.image_rendered, args, video_writer)
-        video_writer.close()
+            accept_trajectory_key, args.image_rendered, args, last_success, video_writer)
+        if video_writer is not None:
+            video_writer.close()
         # print("num_timesteps: ", num_steps)
-        if True: #success:
+        if success:
             if args.gui:
                 print("num_timesteps: ", num_steps)
 
             data.append(traj)
             area_occurance, object_occurance, task_occurance = env.get_occurance()
-
             dump2h5(traj, os.path.join(data_save_path, 'rollout_{}.h5'.format(num_saved)),
                         args.image_rendered, task_occurance)
             num_success += 1
@@ -237,17 +266,19 @@ def main(args):
             data.append(traj)
             num_saved += 1
             progress_bar.update(1)
-
+        else:
+            print("failed! Trying again.")
+        last_success = success
         if args.gui:
             print("success rate: {}".format(num_success/(num_attempts)))
 
     progress_bar.close()
     print("success rate: {}".format(num_success / (num_attempts)))
-    print(total_area_occurance, total_object_occurance)
-    path = osp.join(data_save_path, "scripted_{}_{}.npy".format(
-        args.env_name, timestamp))
-    print(path)
-    np.save(path, data)
+    print(total_area_occurance, total_object_occurance, total_task_occurance)
+    # path = osp.join(data_save_path, "scripted_{}_{}.npy".format(
+    #     args.env_name, timestamp))
+    # print(path)
+    # np.save(path, data)
 
 
 if __name__ == "__main__":
@@ -262,6 +293,7 @@ if __name__ == "__main__":
     parser.add_argument("--save-all", action='store_true', default=False)
     parser.add_argument("--gui", action='store_true', default=False)
     parser.add_argument("-o", "--target-object", type=str)
+    parser.add_argument("-config", "--config", type=str)
     parser.add_argument("-d", "--save-directory", type=str, default=""),
     parser.add_argument("--noise", type=float, default=0.1)
     parser.add_argument("-r", "--image-rendered", type=int, default=1)
